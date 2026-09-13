@@ -288,6 +288,7 @@ export {
   buildBootstrapContextForFiles,
   resolveBootstrapContextForRun,
   resolveBootstrapFilesForRun,
+  resolveContextInjectionMode,
 } from "../agents/bootstrap-files.js";
 export type { EmbeddedContextFile } from "../agents/embedded-agent-helpers/types.js";
 export { isSubagentSessionKey } from "../routing/session-key.js";
