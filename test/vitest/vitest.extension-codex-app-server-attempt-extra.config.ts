@@ -8,6 +8,7 @@ function createExtensionCodexAppServerAttemptExtraVitestConfig(
     [
       "extensions/codex/src/app-server/run-attempt-thread-cleanup.test.ts",
       "extensions/codex/src/app-server/run-attempt.context-engine.test.ts",
+      "extensions/codex/src/app-server/run-attempt.context-injection.test.ts",
       "extensions/codex/src/app-server/run-attempt.dynamic-tools.test.ts",
       "extensions/codex/src/app-server/run-attempt.hooks.test.ts",
       "extensions/codex/src/app-server/run-attempt.native-hook-relay.test.ts",

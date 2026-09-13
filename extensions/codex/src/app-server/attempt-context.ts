@@ -172,14 +172,6 @@ export async function buildCodexWorkspaceBootstrapContext(params: {
   sessionAgentId: string;
   memoryToolNames: readonly string[];
 }): Promise<CodexWorkspaceBootstrapContext> {
-  if (
-    resolveContextInjectionMode(
-      params.params.config,
-      params.params.agentId ?? params.sessionAgentId,
-    ) === "never"
-  ) {
-    return { bootstrapFiles: [], contextFiles: [] };
-  }
   try {
     const memoryToolsAvailable =
       params.memoryToolNames.length > 0 &&
@@ -190,16 +182,23 @@ export async function buildCodexWorkspaceBootstrapContext(params: {
       });
     // Native Codex turns should read workspace MEMORY.md through tools when
     // possible; pasting it into every prompt turns durable memory into policy.
-    const bootstrapFiles = await resolveBootstrapFilesForRun({
-      workspaceDir: params.resolvedWorkspace,
-      config: params.params.config,
-      sessionKey: params.sessionKey,
-      sessionId: params.params.sessionId,
-      agentId: params.params.agentId ?? params.sessionAgentId,
-      warn: (message) => embeddedAgentLog.warn(message),
-      contextMode: params.params.bootstrapContextMode,
-      runKind: params.params.bootstrapContextRunKind,
-    });
+    // Disabling file injection must preserve the active memory plugin's tool policy.
+    const bootstrapFiles =
+      resolveContextInjectionMode(
+        params.params.config,
+        params.params.agentId ?? params.sessionAgentId,
+      ) === "never"
+        ? []
+        : await resolveBootstrapFilesForRun({
+            workspaceDir: params.resolvedWorkspace,
+            config: params.params.config,
+            sessionKey: params.sessionKey,
+            sessionId: params.params.sessionId,
+            agentId: params.params.agentId ?? params.sessionAgentId,
+            warn: (message) => embeddedAgentLog.warn(message),
+            contextMode: params.params.bootstrapContextMode,
+            runKind: params.params.bootstrapContextRunKind,
+          });
     const memoryToolRoutedBootstrapFiles = memoryToolsAvailable
       ? selectCodexWorkspaceMemoryReferenceFiles({
           bootstrapFiles,
