@@ -1,19 +1,26 @@
 // Memory Core tests cover tools plugin behavior.
 import type { MemorySearchRuntimeDebug } from "openclaw/plugin-sdk/memory-core-host-runtime-files";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { OpenClawConfig } from "../api.js";
 import {
   getMemoryCloseMockCalls,
   getMemorySearchManagerMockCalls,
   getMemorySearchManagerMockConfigs,
   getMemorySearchManagerMockParams,
   getMemorySyncMockCalls,
+  getReadAgentMemoryFileMockCalls,
   resetMemoryToolMockState,
   setMemoryBackend,
   setMemoryCustomStatus,
   setMemorySearchImpl,
   setMemorySearchManagerImpl,
 } from "./memory-tool-manager.test-mocks.js";
-import { createMemorySearchTool, testing as memoryToolsTesting } from "./tools.js";
+import {
+  createMemoryGetTool,
+  createMemorySearchTool,
+  testing as memoryToolsTesting,
+} from "./tools.js";
+import * as memoryToolShared from "./tools.shared.js";
 import {
   buildMemorySearchUnavailableResult,
   MemoryGetSchema,
@@ -60,6 +67,179 @@ describe("memory tool schemas", () => {
     expect(searchCorpus.enum).toEqual(["memory", "wiki", "all", "sessions"]);
     expect(getCorpus.anyOf).toBeUndefined();
     expect(getCorpus.enum).toEqual(["memory", "wiki", "all"]);
+  });
+});
+
+describe.each([
+  {
+    name: "memory_search",
+    createTool: createMemorySearchTool,
+    params: { query: "synthetic note" },
+  },
+  {
+    name: "memory_get",
+    createTool: createMemoryGetTool,
+    params: { path: "MEMORY.md" },
+  },
+])("$name current configuration", ({ name, createTool, params }) => {
+  const startupConfig: OpenClawConfig = {
+    agents: {
+      defaults: { memorySearch: { enabled: true, provider: "none", fallback: "none" } },
+      list: [{ id: "main", default: true }],
+    },
+  };
+  const refreshedConfig: OpenClawConfig = {
+    agents: {
+      ...startupConfig.agents,
+      defaults: { ...startupConfig.agents?.defaults, workspace: "/synthetic/refreshed" },
+    },
+  };
+  const search = vi.fn(async () => [
+    {
+      path: "MEMORY.md",
+      startLine: 1,
+      endLine: 1,
+      score: 0.9,
+      snippet: "Synthetic memory note.",
+      source: "memory" as const,
+    },
+  ]);
+  const readFile = vi.fn(async ({ relPath }: { relPath: string }) => ({
+    path: relPath,
+    text: "Synthetic memory note.",
+  }));
+
+  beforeEach(() => {
+    resetMemoryToolMockState({ searchImpl: search, readFileImpl: readFile });
+    memoryToolsTesting.resetMemorySearchToolCooldowns();
+    vi.spyOn(memoryToolShared, "searchMemoryCorpusSupplements").mockResolvedValue([]);
+    vi.spyOn(memoryToolShared, "getMemoryCorpusSupplementResult").mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function createToolOrThrow(options: Parameters<typeof createTool>[0]) {
+    const tool = createTool({ ...options, agentId: "main" });
+    if (!tool) {
+      throw new Error("expected an enabled memory tool");
+    }
+    return tool;
+  }
+
+  function expectNoReads() {
+    expect(getMemorySearchManagerMockCalls()).toBe(0);
+    expect(getReadAgentMemoryFileMockCalls()).toBe(0);
+    expect(search).not.toHaveBeenCalled();
+    expect(readFile).not.toHaveBeenCalled();
+    expect(memoryToolShared.searchMemoryCorpusSupplements).not.toHaveBeenCalled();
+    expect(memoryToolShared.getMemoryCorpusSupplementResult).not.toHaveBeenCalled();
+  }
+
+  function expectReadConfig(config: OpenClawConfig) {
+    if (name === "memory_search") {
+      expect(getMemorySearchManagerMockConfigs()).toEqual([config]);
+      expect(search).toHaveBeenCalledOnce();
+    } else {
+      expect(readFile).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ cfg: config, agentId: "main" }),
+      );
+    }
+  }
+
+  it("does not construct a disabled tool", () => {
+    expect(
+      createTool({ config: { agents: { defaults: { memorySearch: { enabled: false } } } } }),
+    ).toBeNull();
+    expectNoReads();
+  });
+
+  it.each(["defaults", "agent"] as const)(
+    "stops reads after explicit %s disablement and resumes after re-enable",
+    async (scope) => {
+      let liveConfig: OpenClawConfig = startupConfig;
+      const getConfig = vi.fn(() => liveConfig);
+      const tool = createToolOrThrow({ config: startupConfig, getConfig });
+      liveConfig = {
+        agents: {
+          defaults: { memorySearch: { enabled: scope !== "defaults", provider: "none" } },
+          list: [
+            {
+              id: "main",
+              default: true,
+              ...(scope === "agent" ? { memorySearch: { enabled: false } } : {}),
+            },
+          ],
+        },
+      };
+
+      for (const corpus of ["all", "wiki"]) {
+        getConfig.mockClear();
+        const result = await tool.execute("disabled", { ...params, corpus });
+        expect(result.details).toMatchObject({ disabled: true, unavailable: true });
+        expect(getConfig).toHaveBeenCalledOnce();
+        expectNoReads();
+      }
+
+      liveConfig = refreshedConfig;
+      const result = await tool.execute("re-enabled", { ...params, corpus: "memory" });
+      expect(result.details).not.toHaveProperty("disabled", true);
+      expectReadConfig(refreshedConfig);
+    },
+  );
+
+  it.each([
+    { label: "enabled workspace refresh", next: refreshedConfig },
+    {
+      label: "agent enable override over a disabled default",
+      next: {
+        agents: {
+          defaults: { memorySearch: { enabled: false, provider: "none" } },
+          list: [{ id: "main", default: true, memorySearch: { enabled: true } }],
+        },
+      } satisfies OpenClawConfig,
+    },
+    { label: "static configuration without a getter", next: undefined, noGetter: true },
+    { label: "static fallback when the getter is unavailable", next: undefined },
+    { label: "captured fallback without static configuration", next: undefined, noStatic: true },
+    {
+      label: "enabled defaults after the explicit agent is removed",
+      next: { agents: { defaults: startupConfig.agents?.defaults, list: [] } },
+    },
+  ])("preserves $label", async ({ next, noGetter, noStatic }) => {
+    let liveConfig: OpenClawConfig | undefined = startupConfig;
+    const tool = createToolOrThrow({
+      ...(noStatic ? {} : { config: startupConfig }),
+      ...(noGetter ? {} : { getConfig: () => liveConfig }),
+    });
+    liveConfig = next;
+
+    const result = await tool.execute("preserved-config", { ...params, corpus: "memory" });
+
+    expect(result.details).not.toHaveProperty("disabled", true);
+    expectReadConfig(next ?? startupConfig);
+  });
+
+  it("propagates current configuration validation errors without reading", async () => {
+    let liveConfig = startupConfig;
+    const tool = createToolOrThrow({ getConfig: () => liveConfig });
+    liveConfig = {
+      agents: {
+        defaults: {
+          memorySearch: {
+            provider: "none",
+            multimodal: { enabled: true },
+            fallback: "openai",
+          },
+        },
+      },
+    };
+
+    await expect(tool.execute("invalid-config", params)).rejects.toThrow(
+      "multimodal does not support memorySearch.fallback",
+    );
+    expectNoReads();
   });
 });
 

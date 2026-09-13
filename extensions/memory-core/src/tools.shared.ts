@@ -3,6 +3,7 @@ import { optionalFiniteNumberSchema, stringEnum } from "openclaw/plugin-sdk/chan
 import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
 import {
   listMemoryCorpusSupplements,
+  jsonResult,
   resolveMemorySearchConfig,
   resolveSessionAgentIds,
   type MemoryCorpusSearchResult,
@@ -38,8 +39,8 @@ export const MemoryGetSchema = Type.Object({
   corpus: Type.Optional(stringEnum(["memory", "wiki", "all"])),
 });
 
-function resolveMemoryToolContext(options: MemoryToolOptions) {
-  const cfg = options.getConfig?.() ?? options.config;
+function resolveMemoryToolContext(options: MemoryToolOptions, fallbackConfig?: OpenClawConfig) {
+  const cfg = options.getConfig?.() ?? options.config ?? fallbackConfig;
   if (!cfg) {
     return null;
   }
@@ -103,7 +104,17 @@ export function createMemoryTool(params: {
     description: params.description,
     parameters: params.parameters,
     execute: async (toolCallId, toolParams) => {
-      const latestCtx = resolveMemoryToolContext(params.options) ?? ctx;
+      // Missing config keeps the construction snapshot; explicit disablement
+      // must not revive that snapshot and continue reading memory.
+      const latestCtx = resolveMemoryToolContext(params.options, ctx.cfg);
+      if (!latestCtx) {
+        return jsonResult(
+          buildMemorySearchUnavailableResult("Memory retrieval is disabled for this agent.", {
+            warning: "Memory retrieval is disabled for this agent.",
+            action: "Enable memorySearch for this agent before retrying.",
+          }),
+        );
+      }
       return await params.execute(latestCtx)(toolCallId, toolParams);
     },
   };

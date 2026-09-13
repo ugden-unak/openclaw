@@ -2,6 +2,10 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { OpenClawPluginCommandDefinition } from "openclaw/plugin-sdk/core";
 import type { MemoryPluginRuntime } from "openclaw/plugin-sdk/memory-core-host-runtime-core";
+import type {
+  OpenClawPluginToolContext,
+  OpenClawPluginToolFactory,
+} from "openclaw/plugin-sdk/plugin-entry";
 import { createTestPluginApi } from "openclaw/plugin-sdk/plugin-test-api";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -10,6 +14,11 @@ import {
   DEFAULT_MEMORY_FLUSH_PROMPT,
   DEFAULT_MEMORY_FLUSH_SOFT_TOKENS,
 } from "./src/flush-plan.js";
+import {
+  getMemorySearchManagerMockCalls,
+  getReadAgentMemoryFileMockCalls,
+  resetMemoryToolMockState,
+} from "./src/memory-tool-manager.test-mocks.js";
 import { buildPromptSection } from "./src/prompt-section.js";
 
 const closeMemorySearchManagerMock = vi.hoisted(() => vi.fn(async () => {}));
@@ -37,6 +46,24 @@ function registerMemoryCoreRuntime(): MemoryPluginRuntime {
     throw new Error("expected memory-core to register a memory runtime");
   }
   return runtime;
+}
+
+function createRegisteredMemoryTool(name: string, context: OpenClawPluginToolContext) {
+  let factory: OpenClawPluginToolFactory | undefined;
+  plugin.register(
+    createTestPluginApi({
+      registerTool(tool, options) {
+        if (options?.names?.includes(name) && typeof tool === "function") {
+          factory = tool;
+        }
+      },
+    }),
+  );
+  const tool = factory?.(context);
+  if (!tool || Array.isArray(tool)) {
+    throw new Error(`expected a registered ${name} tool`);
+  }
+  return tool;
 }
 
 describe("buildPromptSection", () => {
@@ -112,6 +139,77 @@ describe("memory-core plugin runtime registration", () => {
     await runtime.closeMemorySearchManager?.({ cfg, agentId: "main" });
 
     expect(closeMemorySearchManagerMock).toHaveBeenCalledWith({ cfg, agentId: "main" });
+  });
+});
+
+describe.each([
+  { name: "memory_search", params: { query: "synthetic note", corpus: "memory" } },
+  { name: "memory_get", params: { path: "MEMORY.md", corpus: "memory" } },
+])("registered $name current configuration", ({ name, params }) => {
+  const enabledConfig: OpenClawConfig = {
+    agents: { defaults: { memorySearch: { enabled: true, provider: "none" } } },
+  };
+  const disabledConfig: OpenClawConfig = {
+    agents: { defaults: { memorySearch: { enabled: false } } },
+  };
+
+  beforeEach(() => {
+    resetMemoryToolMockState({
+      searchImpl: async () => [
+        {
+          path: "MEMORY.md",
+          startLine: 1,
+          endLine: 1,
+          score: 0.9,
+          snippet: "Synthetic memory note.",
+          source: "memory",
+        },
+      ],
+      readFileImpl: async ({ relPath }) => ({ path: relPath, text: "Synthetic memory note." }),
+    });
+  });
+
+  function readCounts() {
+    return [getMemorySearchManagerMockCalls(), getReadAgentMemoryFileMockCalls()];
+  }
+
+  it("stops an already-loaded lazy tool when runtime config disables memory", async () => {
+    let liveConfig = enabledConfig;
+    const tool = createRegisteredMemoryTool(name, {
+      config: enabledConfig,
+      runtimeConfig: enabledConfig,
+      getRuntimeConfig: () => liveConfig,
+      agentId: "main",
+    });
+    const first = await tool.execute("enabled-first-load", params);
+    expect(first.details).not.toHaveProperty("disabled", true);
+    const firstReadCounts = readCounts();
+    expect(firstReadCounts).toEqual(name === "memory_search" ? [1, 0] : [0, 1]);
+
+    liveConfig = disabledConfig;
+    const disabled = await tool.execute("disabled-loaded-tool", params);
+    expect(disabled.details).toMatchObject({ disabled: true, unavailable: true });
+    expect(readCounts()).toEqual(firstReadCounts);
+
+    liveConfig = enabledConfig;
+    const resumed = await tool.execute("re-enabled-loaded-tool", params);
+    expect(resumed.details).not.toHaveProperty("disabled", true);
+    expect(readCounts()).toEqual(firstReadCounts.map((count) => count * 2));
+  });
+
+  it("keeps disablement before the first lazy load unavailable", async () => {
+    let liveConfig = enabledConfig;
+    const tool = createRegisteredMemoryTool(name, {
+      config: enabledConfig,
+      getRuntimeConfig: () => liveConfig,
+      agentId: "main",
+    });
+    liveConfig = disabledConfig;
+
+    const result = await tool.execute("disabled-before-load", params);
+
+    expect(result.details).toMatchObject({ disabled: true, unavailable: true });
+    expect(readCounts()).toEqual([0, 0]);
   });
 });
 
