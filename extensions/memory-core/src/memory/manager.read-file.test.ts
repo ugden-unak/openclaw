@@ -2,8 +2,21 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { readMemoryFile } from "openclaw/plugin-sdk/memory-core-host-engine-storage";
+import {
+  readMemoryFile,
+  type MemoryReadResult,
+} from "openclaw/plugin-sdk/memory-core-host-engine-storage";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { createMemoryGetToolOrThrow } from "../tools.test-helpers.js";
+
+const getMemorySearchManager = vi.hoisted(() =>
+  vi.fn(async () => {
+    throw new Error("Builtin memory_get must not acquire a search manager");
+  }),
+);
+
+// Keep the real file/backend runtime while preventing accidental index or provider work.
+vi.mock("./index.js", () => ({ getMemorySearchManager }));
 
 describe("MemoryIndexManager.readFile", () => {
   let workspaceDir: string;
@@ -42,6 +55,53 @@ describe("MemoryIndexManager.readFile", () => {
       relPath,
     });
     expect(result).toEqual({ text: "", path: relPath });
+  });
+
+  it("reads replacement and absence through the same builtin memory_get tool", async () => {
+    const relPath = "memory/current.md";
+    const absPath = path.join(workspaceDir, relPath);
+    await fs.writeFile(absPath, "alpha\nbefore", "utf-8");
+    const tool = createMemoryGetToolOrThrow({
+      memory: { backend: "builtin" },
+      agents: {
+        defaults: {
+          workspace: await fs.realpath(workspaceDir),
+          memorySearch: { enabled: true },
+        },
+        list: [{ id: "main", default: true }],
+      },
+    });
+
+    async function expectCurrentRead(callId: string, expected: MemoryReadResult) {
+      const result = await tool.execute(callId, { path: relPath, corpus: "memory" });
+      expect(result.details).toEqual(expected);
+      expect(result.content).toHaveLength(1);
+      const [content] = result.content;
+      if (content?.type !== "text") {
+        throw new Error("Expected serialized memory_get text");
+      }
+      expect(JSON.parse(content.text)).toEqual(expected);
+      expect(getMemorySearchManager).not.toHaveBeenCalled();
+    }
+
+    await expectCurrentRead("initial", {
+      text: "alpha\nbefore",
+      path: relPath,
+      from: 1,
+      lines: 2,
+    });
+
+    await fs.writeFile(`${absPath}.next`, "bravo\nafter!", "utf-8");
+    await fs.rename(`${absPath}.next`, absPath);
+    await expectCurrentRead("replacement", {
+      text: "bravo\nafter!",
+      path: relPath,
+      from: 1,
+      lines: 2,
+    });
+
+    await fs.unlink(absPath);
+    await expectCurrentRead("absent", { text: "", path: relPath });
   });
 
   it("returns content slices when the file exists", async () => {
