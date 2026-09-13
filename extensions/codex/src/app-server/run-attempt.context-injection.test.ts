@@ -109,7 +109,7 @@ describe("Codex caller workspace context injection", () => {
         registerMemoryCapability("memory-core", {
           promptBuilder({ availableTools, citationsMode }) {
             return [
-              `synthetic-recall-policy: ${[...availableTools].sort().join(",")}`,
+              `synthetic-recall-policy: ${[...availableTools].toSorted().join(",")}`,
               `synthetic-citation-policy: ${citationsMode}`,
             ];
           },
