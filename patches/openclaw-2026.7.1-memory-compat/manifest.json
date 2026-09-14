@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "package": "openclaw",
+  "version": "2026.7.1",
+  "status": "source-only artifact backport; no registry publication or deployment",
+  "input": {
+    "url": "https://registry.npmjs.org/openclaw/-/openclaw-2026.7.1.tgz",
+    "sha256": "67ad539d9915efb63d5f294beeb9290b7172d23c92d8052110a9c8355f783458",
+    "integrity": "sha512-ge/Xss99CHAjPL/ikmH/UFoiOrjcxDB4sW3y9mhyCD+dYW3wzV7TKbAVdkrXFgAG2d2BjpJofP97zUZ+umxo8g==",
+    "originalBuildCommit": "2d2ddc43d0dcf71f31283d780f9fe9ff4cc04fe4"
+  },
+  "output": {
+    "filename": "openclaw-2026.7.1.tgz",
+    "sha256": "be5732f27cf79d70f662a048fea707df516365c04a8df16e3d1c0e8eb96c4cbf",
+    "regularFiles": 8550,
+    "unchangedRegularFiles": 8547,
+    "members": {
+      "package/dist/tools-C2Zf2j2W.js": {
+        "before": {
+          "sha256": "1a774e233c4e9e6811f3a4c2d83e1c40cb345302f0532f9132a754b5730121a6",
+          "mode": 420
+        },
+        "after": {
+          "sha256": "c29d3cecfebe1dbaf0caf1b5bd473a68fa09c16f986ae2323d9a2c8b87c0e1cc",
+          "mode": 420
+        }
+      },
+      "package/npm-shrinkwrap.json": {
+        "before": {
+          "sha256": "d60b5c4360f68dd48801120835ffa2bf2832668f33e91c8b26ed308460538ce0",
+          "mode": 420
+        },
+        "after": {
+          "sha256": "3629caddde553281f2dd57d5ea1f78e2861411ef24437bd0f36db0baf25964b9",
+          "mode": 420
+        }
+      },
+      "package/package.json": {
+        "before": {
+          "sha256": "aa481474c58c5be5e14513e622d7720fd54f896d6c32da70250d8b6310586153",
+          "mode": 420
+        },
+        "after": {
+          "sha256": "08c065ff88dfc8fc8b28554858e7a4dc09cf3e968d80445ce5c9f91a5bb294c9",
+          "mode": 420
+        }
+      }
+    }
+  },
+  "patches": {
+    "memory-tools.patch": "90f85d0ed4e7793934525b3d347b9a58de42a18d32853e12dbf59e8598d40cbb",
+    "dependencies.patch": "c315f2fac97cfb9382b939b1ad22696236cb9782a3bfa921e2eb87eb35225b33"
+  },
+  "dependencyChangesFromCompatibilityBaseline": {
+    "tar": "7.5.21",
+    "undici": "8.9.0",
+    "fast-uri": "3.1.6"
+  },
+  "preservedCompatibilityBaseline": {
+    "node_modules/@hono/node-server": {
+      "published": "1.19.14",
+      "compatibility_baseline": "1.19.17"
+    },
+    "node_modules/@opentelemetry/semantic-conventions": {
+      "published": "1.41.1",
+      "compatibility_baseline": "1.43.0"
+    },
+    "node_modules/@protobufjs/utf8": {
+      "published": "1.1.1",
+      "compatibility_baseline": "1.1.2"
+    },
+    "node_modules/@types/node": {
+      "published": "26.1.0",
+      "compatibility_baseline": "26.2.0"
+    },
+    "node_modules/@types/retry": {
+      "published": "0.12.5",
+      "compatibility_baseline": "0.12.0"
+    },
+    "node_modules/bn.js": {
+      "published": "4.12.4",
+      "compatibility_baseline": "4.12.5"
+    },
+    "node_modules/body-parser/node_modules/content-type": {
+      "published": "2.0.0",
+      "compatibility_baseline": "2.1.0"
+    },
+    "node_modules/brace-expansion": {
+      "published": "5.0.7",
+      "compatibility_baseline": "5.0.9"
+    },
+    "node_modules/eventsource-parser": {
+      "published": "3.1.0",
+      "compatibility_baseline": "3.1.1"
+    },
+    "node_modules/express-rate-limit": {
+      "published": "8.5.2",
+      "compatibility_baseline": "8.6.2"
+    },
+    "node_modules/gaxios": {
+      "published": "7.1.5",
+      "compatibility_baseline": "7.3.1"
+    },
+    "node_modules/google-auth-library": {
+      "published": "10.9.0",
+      "compatibility_baseline": "10.9.1"
+    },
+    "node_modules/hono": {
+      "published": "4.12.25",
+      "compatibility_baseline": "4.13.3"
+    },
+    "node_modules/iconv-lite": {
+      "published": "0.7.2",
+      "compatibility_baseline": "0.7.3"
+    },
+    "node_modules/ip-address": {
+      "published": "10.2.0",
+      "compatibility_baseline": "10.5.0"
+    },
+    "node_modules/jose": {
+      "published": "6.2.3",
+      "compatibility_baseline": "6.2.10"
+    },
+    "node_modules/lru-cache": {
+      "published": "11.5.1",
+      "compatibility_baseline": "11.5.2"
+    },
+    "node_modules/media-typer": {
+      "published": "1.1.0",
+      "compatibility_baseline": "1.1.1"
+    },
+    "node_modules/negotiator": {
+      "published": "1.0.0",
+      "compatibility_baseline": "1.1.0"
+    },
+    "node_modules/negotiator/node_modules/content-type": {
+      "published": null,
+      "compatibility_baseline": "2.1.0"
+    },
+    "node_modules/node-addon-api": {
+      "published": "8.9.0",
+      "compatibility_baseline": "8.9.2"
+    },
+    "node_modules/node-domexception": {
+      "published": "1.0.28",
+      "compatibility_baseline": "1.0.0"
+    },
+    "node_modules/path-to-regexp": {
+      "published": "8.4.0",
+      "compatibility_baseline": "8.4.2"
+    },
+    "node_modules/protobufjs": {
+      "published": "7.6.3",
+      "compatibility_baseline": "7.6.5"
+    },
+    "node_modules/qs": {
+      "published": "6.15.2",
+      "compatibility_baseline": "6.15.3"
+    },
+    "node_modules/readdirp": {
+      "published": "5.0.0",
+      "compatibility_baseline": "5.1.1"
+    },
+    "node_modules/type-is/node_modules/content-type": {
+      "published": "2.0.0",
+      "compatibility_baseline": "2.1.0"
+    }
+  },
+  "packageLockNodesIncludingRootAndPortableOptionalPackages": 309,
+  "installationOverrides": {
+    "tar": "7.5.21",
+    "undici": "8.9.0",
+    "fast-uri": "3.1.6"
+  },
+  "validationToolchain": {
+    "node": "24.19.0",
+    "npm": "11.17.0"
+  },
+  "nativePackages": "Not present in this OpenClaw artifact dependency closure. External plugins and native CLI selection belong to the parent installation.",
+  "limits": [
+    "This is an exact released-artifact backport, not a build of the fork source tree. The containing fork commit identifies this recipe and patches only.",
+    "The package version and original build-info commit remain unchanged. Identify the modified artifact by digest.",
+    "npm12 drops npm-shrinkwrap.json support; it is not a supported installation route for this shrinkwrap candidate.",
+    "Parent installation must explicitly apply the installationOverrides and validate its own final lock. Package-owned overrides alone do not control a parent installation.",
+    "No real runtime config refresh, memory access, evaluator performance, historical validity, forgetting or measured benefit is established."
+  ]
+}

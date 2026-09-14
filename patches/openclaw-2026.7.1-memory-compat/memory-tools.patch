@@ -1,0 +1,18 @@
+diff --git a/dist/tools-C2Zf2j2W.js b/dist/tools-C2Zf2j2W.js
+index de6ea01..5ce6cf0 100644
+--- a/dist/tools-C2Zf2j2W.js
++++ b/dist/tools-C2Zf2j2W.js
+@@ -201,2 +201,2 @@ const MemoryGetSchema = Type.Object({
+-function resolveMemoryToolContext(options) {
+-	const cfg = options.getConfig?.() ?? options.config;
++function resolveMemoryToolContext(options, fallbackConfig) {
++	const cfg = options.getConfig?.() ?? options.config ?? fallbackConfig;
+@@ -240 +240,7 @@ function createMemoryTool(params) {
+-			const latestCtx = resolveMemoryToolContext(params.options) ?? ctx;
++			// Missing config keeps the construction snapshot; explicit disablement
++			// must not revive that snapshot and continue reading memory.
++			const latestCtx = resolveMemoryToolContext(params.options, ctx.cfg);
++			if (!latestCtx) return jsonResult(buildMemorySearchUnavailableResult("Memory retrieval is disabled for this agent.", {
++				warning: "Memory retrieval is disabled for this agent.",
++				action: "Enable memorySearch for this agent before retrying."
++			}));
